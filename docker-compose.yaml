@@ -1,0 +1,33 @@
+services:
+  # Default: DB_BACKEND=memory. For Firestore emulator:
+  #   DB_BACKEND=firestore GCP_PROJECT_ID=local-project \
+  #   FIRESTORE_EMULATOR_HOST=firestore:8081 \
+  #   docker compose --profile firestore up --build
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DB_BACKEND: ${DB_BACKEND:-memory}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-local-project}
+      FIRESTORE_EMULATOR_HOST: ${FIRESTORE_EMULATOR_HOST:-}
+      ADMIN_APP_ID: harborAdmin
+      ADMIN_EMAILS: '["admin@example.com"]'
+      ADMIN_PASSWORD: AdminPass123
+      SEED_ON_START: "true"
+      ENCRYPTION_KEY: "dev-encryption-key-change-me!!"
+      JWT_ISSUER: harbor-services
+      BASE_URL: http://localhost:8080
+    depends_on:
+      firestore:
+        condition: service_started
+        required: false
+
+  # Optional: docker compose --profile firestore up
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud beta emulators firestore start --host-port=0.0.0.0:8081 --project=local-project
+    ports:
+      - "8081:8081"
+    profiles: ["firestore"]

@@ -1,0 +1,14 @@
+.bin/
+.idea/
+.vscode/
+*.exe
+*.test
+*.out
+.env
+.env.local
+vendor/
+coverage.out
+*.pem
+keys/
+.DS_Store
+firestore-data/
