@@ -242,7 +242,10 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 | `rsa-public-key`  | `RSA_PUBLIC_KEY_PEM`  | 公钥（可省略；未设时从私钥推导）                    |
 
 
-> **重要：** 未设置 `RSA_PRIVATE_KEY_PEM` 时，进程会每次启动生成临时 RSA 密钥。Cloud Run 多实例 / 冷启动后 JWKS 与已签发 token 会不一致，**生产禁止省略**。
+> **重要：**  
+> - 未设置 `RSA_PRIVATE_KEY_PEM` 且 `DB_BACKEND=firestore` 时进程**拒绝启动**（禁止临时密钥）。  
+> - `kid` 由公钥 SPKI 的 SHA-256 派生，**同一 PEM 跨重启 / 多实例 kid 恒定**。此前每次启动 `RandomURLSafe` 换 kid 会导致业务侧 `Unknown kid`，即使私钥 Secret 已挂载。  
+> - 本地 `DB_BACKEND=memory` 仍可省略 PEM（进程内临时密钥，仅开发）。
 
 
 
@@ -697,7 +700,7 @@ gcloud run services describe "$SERVICE_NAME" \
 → 未 seed，或 `ADMIN_APP_ID` 与 seed 不一致；确认 Firestore 存在 `apps/harborAdmin`。
 
 **多实例 JWKS / token 校验混乱**  
-→ 未挂载 `RSA_PRIVATE_KEY_PEM`，实例各自生成临时密钥。
+→ 未挂载 `RSA_PRIVATE_KEY_PEM`，或旧版本每次启动随机 `kid`（已改为由公钥派生）。确认 Secret 已挂载且部署含稳定 kid 修复。
 
 **连不上 Firestore / permission denied**  
 → 服务账号是否具备 `roles/datastore.user`；是否误设了 `FIRESTORE_EMULATOR_HOST`。

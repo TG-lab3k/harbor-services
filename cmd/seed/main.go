@@ -50,11 +50,12 @@ func main() {
 		log.Fatalf("encryptor: %v", err)
 	}
 	jwtSvc, err := sharedjwt.NewService(sharedjwt.Options{
-		Issuer:        cfg.JWTIssuer,
-		AccessTTL:     cfg.AccessTokenTTL,
-		RefreshTTL:    cfg.RefreshTokenTTL,
-		PrivateKeyPEM: cfg.RSAPrivateKeyPEM,
-		PublicKeyPEM:  cfg.RSAPublicKeyPEM,
+		Issuer:            cfg.JWTIssuer,
+		AccessTTL:         cfg.AccessTokenTTL,
+		RefreshTTL:        cfg.RefreshTokenTTL,
+		PrivateKeyPEM:     cfg.RSAPrivateKeyPEM,
+		PublicKeyPEM:      cfg.RSAPublicKeyPEM,
+		AllowEphemeralKey: cfg.DBBackend == "memory",
 	})
 	if err != nil {
 		log.Fatalf("jwt: %v", err)

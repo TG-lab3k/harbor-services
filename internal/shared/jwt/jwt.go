@@ -3,6 +3,7 @@ package jwt
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -43,11 +44,14 @@ type Service struct {
 }
 
 type Options struct {
-	Issuer         string
-	AccessTTL      time.Duration
-	RefreshTTL     time.Duration
-	PrivateKeyPEM  string
-	PublicKeyPEM   string
+	Issuer        string
+	AccessTTL     time.Duration
+	RefreshTTL    time.Duration
+	PrivateKeyPEM string
+	PublicKeyPEM  string
+	// AllowEphemeralKey permits generating a temporary RSA key when PEM is empty.
+	// Production (e.g. DB_BACKEND=firestore) must leave this false.
+	AllowEphemeralKey bool
 }
 
 func NewService(opts Options) (*Service, error) {
@@ -77,23 +81,37 @@ func NewService(opts Options) (*Service, error) {
 				return nil, err
 			}
 		}
-	} else {
+	} else if opts.AllowEphemeralKey {
 		priv, err = rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			return nil, fmt.Errorf("generate rsa: %w", err)
 		}
 		pub = &priv.PublicKey
+	} else {
+		return nil, errors.New("RSA_PRIVATE_KEY_PEM is required (ephemeral keys disabled)")
 	}
 
-	kid := idgen.RandomURLSafe(8)
 	return &Service{
 		privateKey: priv,
 		publicKey:  pub,
-		kid:        kid,
+		kid:        kidFromPublicKey(pub),
 		issuer:     opts.Issuer,
 		accessTTL:  opts.AccessTTL,
 		refreshTTL: opts.RefreshTTL,
 	}, nil
+}
+
+// kidFromPublicKey derives a stable kid from the SubjectPublicKeyInfo digest.
+// Same PEM → same kid across restarts / instances.
+func kidFromPublicKey(pub *rsa.PublicKey) string {
+	der, err := x509.MarshalPKIXPublicKey(pub)
+	if err != nil {
+		// Extremely unlikely for a valid rsa.PublicKey; fall back to random.
+		return idgen.RandomURLSafe(8)
+	}
+	sum := sha256.Sum256(der)
+	// 9 bytes → 12 chars base64url (no pad), similar length to prior RandomURLSafe(8).
+	return base64.RawURLEncoding.EncodeToString(sum[:9])
 }
 
 func (s *Service) IssueAccess(userID, appID, email, role string, tv int) (string, error) {
@@ -172,6 +190,11 @@ func (s *Service) JWKS() map[string]interface{} {
 			},
 		},
 	}
+}
+
+// Kid returns the stable key id used in JWT headers / JWKS.
+func (s *Service) Kid() string {
+	return s.kid
 }
 
 func parsePrivateKeyPEM(pemStr string) (*rsa.PrivateKey, error) {

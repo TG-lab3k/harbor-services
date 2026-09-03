@@ -369,7 +369,7 @@ curl -sS -X POST "${SERVICE_URL}/api/v1/auth/login" \
 → `ADMIN_EMAILS` 被改空或与登录邮箱不一致。
 
 **多实例 JWKS / token 混乱**  
-→ `RSA_PRIVATE_KEY_PEM` 绑定丢失；按 [DEPLOY §4](./DEPLOY.md#4-密钥secret-manager) 检查 Secret。
+→ `RSA_PRIVATE_KEY_PEM` 绑定丢失，或旧镜像仍用随机 `kid`；按 [DEPLOY §4](./DEPLOY.md#4-密钥secret-manager) 检查 Secret，并部署含「公钥派生 kid」的版本。
 
 **OAuth 2007 / 解密失败**  
 → 刚轮换了 `ENCRYPTION_KEY`，需重新 `PUT` auth-config。
