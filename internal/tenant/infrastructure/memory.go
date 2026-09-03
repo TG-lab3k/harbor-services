@@ -47,6 +47,9 @@ func (r *MemoryAppRepository) List(ctx context.Context, filter domain.ListAppsFi
 	defer r.mu.RUnlock()
 	out := make([]*domain.App, 0, len(r.apps))
 	for _, app := range r.apps {
+		if app.Status == domain.AppStatusDeleted {
+			continue
+		}
 		if !filter.IncludeDisabled && app.Status != domain.AppStatusActive {
 			continue
 		}

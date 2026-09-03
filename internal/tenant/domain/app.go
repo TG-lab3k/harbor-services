@@ -8,6 +8,7 @@ type AppStatus string
 const (
 	AppStatusActive   AppStatus = "active"
 	AppStatusDisabled AppStatus = "disabled"
+	AppStatusDeleted  AppStatus = "deleted"
 )
 
 // App is the Tenant primary entity.

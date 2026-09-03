@@ -121,7 +121,15 @@ func (r *FirestoreAppRepository) List(ctx context.Context, filter domain.ListApp
 		}
 		out = append(out, docToApp(d))
 	}
-	return out, nil
+	// Always hide soft-deleted apps from admin list.
+	filtered := make([]*domain.App, 0, len(out))
+	for _, app := range out {
+		if app.Status == domain.AppStatusDeleted {
+			continue
+		}
+		filtered = append(filtered, app)
+	}
+	return filtered, nil
 }
 
 func (r *FirestoreAppRepository) Update(ctx context.Context, app *domain.App) error {
