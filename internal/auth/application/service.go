@@ -1187,7 +1187,7 @@ func toAuthConfigPublic(cfg *domain.AppAuthConfig) *AuthConfigPublic {
 	return out
 }
 
-func (s *Service) GetAuthConfig(ctx context.Context, appID string) (*AuthConfigPublic, error) {
+func (s *Service) GetAuthConfig(ctx context.Context, appID string) (*UpdateAuthConfigResult, error) {
 	if _, err := s.apps.GetApp(ctx, appID); err != nil {
 		return nil, err
 	}
@@ -1196,9 +1196,34 @@ func (s *Service) GetAuthConfig(ctx context.Context, appID string) (*AuthConfigP
 		return nil, err
 	}
 	if cfg == nil {
-		return &AuthConfigPublic{AppID: appID, GoogleConfigured: false, AppleConfigured: false}, nil
+		return &UpdateAuthConfigResult{
+			AuthConfigPublic: &AuthConfigPublic{
+				AppID:            appID,
+				GoogleConfigured: false,
+				AppleConfigured:  false,
+			},
+		}, nil
 	}
-	return toAuthConfigPublic(cfg), nil
+	res := &UpdateAuthConfigResult{AuthConfigPublic: toAuthConfigPublic(cfg)}
+	if s.encryptor != nil &&
+		cfg.GoogleClientSecretEncrypted != nil &&
+		*cfg.GoogleClientSecretEncrypted != "" {
+		plain, err := s.encryptor.Decrypt(*cfg.GoogleClientSecretEncrypted)
+		if err != nil {
+			return nil, apperr.Internal("failed to decrypt google secret")
+		}
+		res.GoogleClientSecret = &plain
+	}
+	if s.encryptor != nil &&
+		cfg.ApplePrivateKeyEncrypted != nil &&
+		*cfg.ApplePrivateKeyEncrypted != "" {
+		plain, err := s.encryptor.Decrypt(*cfg.ApplePrivateKeyEncrypted)
+		if err != nil {
+			return nil, apperr.Internal("failed to decrypt apple key")
+		}
+		res.ApplePrivateKey = &plain
+	}
+	return res, nil
 }
 
 type UpdateAuthConfigInput struct {

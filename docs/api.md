@@ -630,16 +630,18 @@ Query：`include_disabled=true|1` 时包含已停用；默认仅 `active`。
 
 #### `GET /api/v1/admin/apps/:app_id/auth-config`
 
-**响应 `data`**（永不返回解密后的 secret / 私钥）
+**响应 `data`**（Admin 可回显已配置的 secret / 私钥明文，供编辑页密文展示与眼睛切换）
 
 ```json
 {
   "app_id": "app_xxx",
   "google_client_id": "xxx.apps.googleusercontent.com",
+  "google_client_secret": "plain-secret-if-configured",
   "google_configured": true,
   "apple_client_id": null,
   "apple_team_id": null,
   "apple_key_id": null,
+  "apple_private_key": null,
   "apple_configured": false,
   "updated_at": "2026-01-01T00:00:00Z"
 }

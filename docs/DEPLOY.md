@@ -1,7 +1,7 @@
 # harbor-services 部署到 Google Cloud Run
 
 > 预计耗时：30–45 分钟（首次）  
-> 相关文档：[API](./api.md) · 索引定义 `deployments/gcp/firestore.indexes.json`
+> 相关文档：[API](./api.md) · [重新部署](./RE_DEPLOY.md) · 索引定义 `deployments/gcp/firestore.indexes.json`
 
 ---
 
@@ -635,9 +635,9 @@ gcloud run services update "$SERVICE_NAME" \
 
 ## 10. 后续维护
 
+代码变更、环境变量 / Secret 更新、回滚等日常操作见 **[重新部署手册](./RE_DEPLOY.md)**。
 
-
-### 更新镜像
+### 更新镜像（摘要）
 
 ```bash
 docker build --platform linux/amd64 -t "$IMAGE" .
@@ -649,20 +649,12 @@ gcloud run deploy "$SERVICE_NAME" \
   --region="$REGION"
 ```
 
+### 轮换 ENCRYPTION_KEY / RSA（摘要）
 
+- `ENCRYPTION_KEY`：更换后**无法**解密库内旧密文；需重新 `PUT .../auth-config`。
+- RSA：写入 Secret 新版本并滚动修订；已签发 token 全部失效（无多公钥并存）。
 
-### 轮换 ENCRYPTION_KEY
-
-更换后**无法**解密库内旧的 Google/Apple 密文；需用 Admin `PUT .../auth-config` 重新提交明文凭证。规划轮换窗口时务必知悉。
-
-### 轮换 RSA 密钥
-
-1. 生成新密钥对，写入 Secret 新版本。
-2. 滚动 Cloud Run 使新私钥生效。
-3. 已签发 Access/Refresh 在旧钥下将全部失效，用户需重新登录。
-  （当前版本不支持多公钥 JWKS 并存；轮换等于强制重登。）
-
-
+详情与触发 `:latest` 生效的步骤见 [RE_DEPLOY §3](./RE_DEPLOY.md#3-场景-csecret-变更--轮换)。
 
 ### 查看当前环境变量 / Secret 绑定
 
@@ -671,6 +663,7 @@ gcloud run services describe "$SERVICE_NAME" \
   --project="$PROJECT_ID" --region="$REGION" \
   --format="yaml(spec.template.spec.containers[0].env)"
 ```
+
 
 ---
 

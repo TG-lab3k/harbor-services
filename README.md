@@ -27,4 +27,5 @@
 - [架构](docs/ARCH_README.md)
 - [API](docs/api.md)
 - [部署](docs/DEPLOY.md)
+- [重新部署](docs/RE_DEPLOY.md)
 
