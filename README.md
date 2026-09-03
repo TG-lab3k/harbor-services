@@ -1,69 +1,30 @@
 # harbor-services
 
-Multi-tenant lightweight BaaS mid-platform (Go + Gin). P0 modules: **Tenant**, **Auth**, **Admin**, plus Billing/Ops config stubs.
+## 简介
 
-## Quick start (memory backend)
+- harbor-services 是一个多租户轻量级 BaaS 中台服务。
+- 为独立开发者的众多产品提供「统一注册/登录 (Auth) + 支付 (Billing) + 运营配置 (Online Operations)」轻量级 BaaS 中台，以便减少各个产品通用功能的重复开发，节约时间成本，能快速上线新产品。
 
-```bash
-cp .env.example .env
-export $(grep -v '^#' .env | xargs)
-go run ./cmd/server
-```
+## 技术栈
 
-Or Docker (memory is the default):
+- 开发语言: Go
+- 框架: Gin
+- 部署平台: Google Cloud Run
+- 数据库: Google Firestore
+- 容器化: Docker
+- 接口风格: REST API
 
-```bash
-docker compose up --build
-```
+## 模块
 
-- Health: `GET /health`
-- JWKS: `GET /.well-known/jwks.json`
-- Auth: `/api/v1/auth/*`, `/api/v1/user/*`, `/api/v1/oauth/introspect`
-- Admin: `/api/v1/admin/*` (Bearer + `ADMIN_APP_ID` + `ADMIN_EMAILS`)
+- 租户 (APP) 管理 P0
+- 统一注册/登录 (Auth) P0
+- 支付 (Billing) P0
+- 运营配置 (Online Operations) P1
+- Admin 管理后台 P0
 
-With `SEED_ON_START=true`, the process creates `harborAdmin` and admin users from `ADMIN_EMAILS` / `ADMIN_PASSWORD`.
+## 文档
 
-## Storage backends
+- [架构](docs/ARCH_README.md)
+- [API](docs/api.md)
+- [部署](docs/DEPLOY.md)
 
-| `DB_BACKEND` | Persistence | Notes |
-|---|---|---|
-| `memory` (default) | Process memory | Fast local MVP; data lost on restart |
-| `firestore` | Google Cloud Firestore | Requires `GCP_PROJECT_ID`; set `FIRESTORE_EMULATOR_HOST` for local emulator |
-
-### Firestore (emulator)
-
-```bash
-# API + emulator via Compose
-DB_BACKEND=firestore \
-GCP_PROJECT_ID=local-project \
-FIRESTORE_EMULATOR_HOST=firestore:8081 \
-  docker compose --profile firestore up --build
-
-# Or run the API locally against an emulator on :8081
-export DB_BACKEND=firestore
-export GCP_PROJECT_ID=local-project
-export FIRESTORE_EMULATOR_HOST=localhost:8081
-go run ./cmd/server
-```
-
-Deploy composite indexes from `deployments/gcp/firestore.indexes.json`:
-
-```bash
-gcloud firestore indexes composite create --project=$GCP_PROJECT_ID \
-  # or: firebase deploy --only firestore:indexes
-```
-
-Standalone seed against Firestore:
-
-```bash
-export DB_BACKEND=firestore GCP_PROJECT_ID=local-project FIRESTORE_EMULATOR_HOST=localhost:8081
-go run ./cmd/seed
-```
-
-`go run ./cmd/seed` with `DB_BACKEND=memory` does not persist across processes — use `SEED_ON_START=true` on the API instead.
-
-## Docs
-
-- `intro_01.md` — product intro
-- `arch_01.md` — architecture
-- `tech_01.md` — Tenant / Auth / Admin detailed design
