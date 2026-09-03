@@ -9,29 +9,33 @@
 ## 何时需要重新部署
 
 
-| 场景 | 是否需要重建镜像 | 是否需要改 Cloud Run 配置 | 说明 |
-| --- | --- | --- | --- |
-| 仅业务代码 / Dockerfile 变更 | **是** | 否（可只换镜像） | 见 §2 |
-| 仅普通环境变量变更 | 否 | **是** | 见 §3 |
-| 仅 Secret 内容轮换 | 否 | 通常否（`:latest` 需触发新修订） | 见 §4 |
-| 代码 + 环境变量同时变 | **是** | **是** | 先改配置再部署镜像，或一次 `deploy` 带齐参数 |
-| 增删管理员白名单 | 否 | **是**（`ADMIN_EMAILS`） | 见 [DEPLOY §7.4](./DEPLOY.md#74-增删管理员) |
-| Firestore 索引新增 | 否 | 否 | 按 [DEPLOY §2.3](./DEPLOY.md#23-部署复合索引) 建索引；与镜像无关 |
+| 场景                    | 是否需要重建镜像 | 是否需要改 Cloud Run 配置    | 说明                                               |
+| --------------------- | -------- | --------------------- | ------------------------------------------------ |
+| 仅业务代码 / Dockerfile 变更 | **是**    | 否（可只换镜像）              | 见 §2                                             |
+| 仅普通环境变量变更             | 否        | **是**                 | 见 §3                                             |
+| 仅 Secret 内容轮换         | 否        | 通常否（`:latest` 需触发新修订） | 见 §4                                             |
+| 代码 + 环境变量同时变          | **是**    | **是**                 | 先改配置再部署镜像，或一次 `deploy` 带齐参数                      |
+| 增删管理员白名单              | 否        | **是**（`ADMIN_EMAILS`） | 见 [DEPLOY §7.4](./DEPLOY.md#74-增删管理员)            |
+| Firestore 索引新增        | 否        | 否                     | 按 [DEPLOY §2.3](./DEPLOY.md#23-部署复合索引) 建索引；与镜像无关 |
+
 
 **不在本手册范围：** 新建项目、建库、建服务账号、首次 Secret / 首次 seed —— 请走 [DEPLOY.md](./DEPLOY.md)。
 
 ---
 
+
+
 ## 重新部署清单（Checklist）
 
 
-| 步骤 | 内容 |
-| --- | --- |
-| 1 | 确认 shell 变量与当前 GCP 项目 / 区域一致 |
-| 2 | （代码变更）构建并推送新镜像 |
-| 3 | （配置变更）更新 env / Secret 绑定 |
-| 4 | 触发 Cloud Run 新修订并等待 Ready |
-| 5 | 验证健康检查 / JWKS / 关键登录 |
+| 步骤  | 内容                           |
+| --- | ---------------------------- |
+| 1   | 确认 shell 变量与当前 GCP 项目 / 区域一致 |
+| 2   | （代码变更）构建并推送新镜像               |
+| 3   | （配置变更）更新 env / Secret 绑定     |
+| 4   | 触发 Cloud Run 新修订并等待 Ready    |
+| 5   | 验证健康检查 / JWKS / 关键登录         |
+
 
 ---
 
@@ -107,7 +111,6 @@ export IMAGE_TAGGED="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/${SERVICE
 
 docker build --platform linux/amd64 -t "$IMAGE_TAGGED" -t "$IMAGE" .
 docker push "$IMAGE_TAGGED"
-docker push "$IMAGE"
 
 gcloud run deploy "$SERVICE_NAME" \
   --project="$PROJECT_ID" \
@@ -120,6 +123,8 @@ gcloud run deploy "$SERVICE_NAME" \
 
 
 ## 2. 场景 B：仅环境变量变更
+
+
 
 ### 2.1 更新 / 新增普通环境变量
 
@@ -153,18 +158,21 @@ gcloud run services update "$SERVICE_NAME" \
   --remove-env-vars="ADMIN_PASSWORD,SEED_ON_START"
 ```
 
+
+
 ### 2.3 生产环境变量注意点
 
 
-| 变量 | 重新部署时注意 |
-| --- | --- |
-| `DB_BACKEND` | 必须保持 `firestore`；切勿改成 `memory` |
-| `GCP_PROJECT_ID` | 错误会导致连错库或权限失败 |
+| 变量                        | 重新部署时注意                                 |
+| ------------------------- | --------------------------------------- |
+| `DB_BACKEND`              | 必须保持 `firestore`；切勿改成 `memory`          |
+| `GCP_PROJECT_ID`          | 错误会导致连错库或权限失败                           |
 | `FIRESTORE_EMULATOR_HOST` | **生产切勿设置**；若误加，用 `--remove-env-vars` 删掉 |
-| `SEED_ON_START` | 日常保持 `false`；仅补建 Admin 用户时短暂打开 |
-| `ADMIN_PASSWORD` | Seed 完成后应从配置中移除 |
-| `BASE_URL` / `JWT_ISSUER` | 自定义域名或默认 URL 变更后需同步更新 |
-| `ADMIN_EMAILS` | 空则全部 Admin API 拒绝（fail-closed） |
+| `SEED_ON_START`           | 日常保持 `false`；仅补建 Admin 用户时短暂打开          |
+| `ADMIN_PASSWORD`          | Seed 完成后应从配置中移除                         |
+| `BASE_URL` / `JWT_ISSUER` | 自定义域名或默认 URL 变更后需同步更新                   |
+| `ADMIN_EMAILS`            | 空则全部 Admin API 拒绝（fail-closed）          |
+
 
 完整说明见 [DEPLOY §6.1](./DEPLOY.md#61-环境变量一览)。
 
@@ -204,6 +212,8 @@ gcloud run services update "$SERVICE_NAME" \
   --update-env-vars="APP_CACHE_TTL_SEC=300"
 ```
 
+
+
 ### 3.2 新增 Secret 绑定
 
 ```bash
@@ -222,15 +232,18 @@ gcloud run services update "$SERVICE_NAME" \
   --remove-secrets=ADMIN_PASSWORD
 ```
 
+
+
 ### 3.4 轮换影响（务必先读）
 
 
-| Secret | 轮换后果 |
-| --- | --- |
-| `encryption-key` / `ENCRYPTION_KEY` | **无法**解密库内旧的 Google/Apple 等密文；需用 Admin `PUT .../auth-config` 重新提交明文凭证 |
-| `rsa-private-key` / `RSA_PRIVATE_KEY_PEM` | 已签发 Access/Refresh 全部失效，用户需重新登录；当前不支持多公钥 JWKS 并存 |
-| `rsa-public-key` | 建议与私钥成对更新；可省略时由私钥推导 |
-| `admin-password` | 仅影响 seed；**不**重置已存在用户密码 |
+| Secret                                    | 轮换后果                                                                  |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| `encryption-key` / `ENCRYPTION_KEY`       | **无法**解密库内旧的 Google/Apple 等密文；需用 Admin `PUT .../auth-config` 重新提交明文凭证 |
+| `rsa-private-key` / `RSA_PRIVATE_KEY_PEM` | 已签发 Access/Refresh 全部失效，用户需重新登录；当前不支持多公钥 JWKS 并存                      |
+| `rsa-public-key`                          | 建议与私钥成对更新；可省略时由私钥推导                                                   |
+| `admin-password`                          | 仅影响 seed；**不**重置已存在用户密码                                               |
+
 
 轮换 RSA 推荐步骤：
 
@@ -270,6 +283,8 @@ RSA_PUBLIC_KEY_PEM=rsa-public-key:latest"
 
 ## 5. 常见运维操作速查
 
+
+
 ### 5.1 临时打开 seed（补建 Admin 用户）
 
 与 [DEPLOY §7.4](./DEPLOY.md#74-增删管理员) 一致：先更新 `ADMIN_EMAILS`，再短暂注入密码并打开 seed：
@@ -304,6 +319,8 @@ gcloud run services update "$SERVICE_NAME" \
   --concurrency=80 \
   --timeout=30s
 ```
+
+
 
 ### 5.3 回滚到上一修订
 

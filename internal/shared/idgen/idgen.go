@@ -51,3 +51,23 @@ func NewSecret(n int) string {
 func NewJTI() string {
 	return RandomURLSafe(16)
 }
+
+// NewOrderID returns a billing order id.
+func NewOrderID() string {
+	return "ord_" + RandomURLSafe(12)
+}
+
+// NewCheckoutID returns a billing checkout session id.
+func NewCheckoutID() string {
+	return "chk_" + RandomURLSafe(12)
+}
+
+// NewProductID returns a billing product id.
+func NewProductID() string {
+	return "prod_" + RandomURLSafe(12)
+}
+
+// NewWebhookEventID returns a webhook event document id.
+func NewWebhookEventID() string {
+	return "whe_" + RandomURLSafe(12)
+}

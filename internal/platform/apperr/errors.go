@@ -36,6 +36,18 @@ const (
 	CodeRedirectURINotAllowed = 2006
 	CodeProviderNotConfigured = 2007
 
+	// Billing 3xxx (billing_prd_01 §8).
+	CodeBillingNotEnabled     = 3001
+	CodeBillingProvider       = 3002
+	CodeBillingProduct        = 3003
+	CodeBillingOrderNotFound  = 3004
+	CodeBillingIdempotency    = 3005
+	CodeBillingCheckoutParams = 3006
+	CodeBillingUpstream       = 3007
+	CodeBillingWebhookSig     = 3008
+	CodeBillingOrderState     = 3009
+	CodeBillingAppInactive    = 3010
+
 	CodeInternal = 9999
 )
 
@@ -160,6 +172,76 @@ func ProviderNotConfigured(message string) *HarborError {
 		message = "provider not configured"
 	}
 	return newErr(CodeProviderNotConfigured, 400, message)
+}
+
+func BillingNotEnabled(message string) *HarborError {
+	if message == "" {
+		message = "billing not enabled or default_provider not set"
+	}
+	return newErr(CodeBillingNotEnabled, 400, message)
+}
+
+func BillingProvider(message string) *HarborError {
+	if message == "" {
+		message = "billing provider unsupported or not configured"
+	}
+	return newErr(CodeBillingProvider, 400, message)
+}
+
+func BillingProduct(message string) *HarborError {
+	if message == "" {
+		message = "product not found or not mapped to provider"
+	}
+	return newErr(CodeBillingProduct, 404, message)
+}
+
+func BillingOrderNotFound(message string) *HarborError {
+	if message == "" {
+		message = "order not found"
+	}
+	return newErr(CodeBillingOrderNotFound, 404, message)
+}
+
+func BillingIdempotency(message string) *HarborError {
+	if message == "" {
+		message = "idempotency key conflict"
+	}
+	return newErr(CodeBillingIdempotency, 409, message)
+}
+
+func BillingCheckoutParams(message string) *HarborError {
+	if message == "" {
+		message = "invalid checkout parameters"
+	}
+	return newErr(CodeBillingCheckoutParams, 400, message)
+}
+
+func BillingUpstream(message string) *HarborError {
+	if message == "" {
+		message = "upstream payment provider failed"
+	}
+	return newErr(CodeBillingUpstream, 502, message)
+}
+
+func BillingWebhookSig(message string) *HarborError {
+	if message == "" {
+		message = "webhook signature invalid"
+	}
+	return newErr(CodeBillingWebhookSig, 401, message)
+}
+
+func BillingOrderState(message string) *HarborError {
+	if message == "" {
+		message = "order state does not allow this operation"
+	}
+	return newErr(CodeBillingOrderState, 409, message)
+}
+
+func BillingAppInactive(message string) *HarborError {
+	if message == "" {
+		message = "app is not active; billing rejected"
+	}
+	return newErr(CodeBillingAppInactive, 403, message)
 }
 
 func Internal(message string) *HarborError {

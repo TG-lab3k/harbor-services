@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/firestore"
 	"github.com/gin-gonic/gin"
 
 	adminpres "github.com/okok/harbor-services/internal/admin/presentation"
@@ -15,7 +16,10 @@ import (
 	authdomain "github.com/okok/harbor-services/internal/auth/domain"
 	authinfra "github.com/okok/harbor-services/internal/auth/infrastructure"
 	authpres "github.com/okok/harbor-services/internal/auth/presentation"
-	"github.com/okok/harbor-services/internal/billing"
+	billingapp "github.com/okok/harbor-services/internal/billing/application"
+	billinginfra "github.com/okok/harbor-services/internal/billing/infrastructure"
+	"github.com/okok/harbor-services/internal/billing/infrastructure/providers"
+	billingpres "github.com/okok/harbor-services/internal/billing/presentation"
 	"github.com/okok/harbor-services/internal/ops"
 	"github.com/okok/harbor-services/internal/platform/config"
 	"github.com/okok/harbor-services/internal/platform/firestorex"
@@ -77,6 +81,7 @@ func main() {
 		oauthRepo      authdomain.OAuthAccountRepository
 		refreshRepo    authdomain.RefreshTokenRepository
 		verifyRepo     authdomain.VerificationTokenRepository
+		fsClient       *firestore.Client
 	)
 
 	switch cfg.DBBackend {
@@ -92,7 +97,8 @@ func main() {
 		if cfg.GCPProjectID == "" {
 			log.Fatal("GCP_PROJECT_ID is required when DB_BACKEND=firestore")
 		}
-		fsClient, err := firestorex.NewClient(context.Background(), cfg.GCPProjectID)
+		var err error
+		fsClient, err = firestorex.NewClient(context.Background(), cfg.GCPProjectID)
 		if err != nil {
 			log.Fatalf("firestore: %v", err)
 		}
@@ -127,10 +133,40 @@ func main() {
 		BaseURL:        cfg.BaseURL,
 	})
 
-	tenantSvc := tenantapp.NewAppService(cachedApps, hasher, authSvc)
+	registry := providers.NewRegistry(
+		providers.NewCreem(nil),
+		providers.NewMock(),
+	)
+
+	var billingSvc *billingapp.Service
+	switch cfg.DBBackend {
+	case "memory":
+		bstore := billinginfra.NewMemoryStore()
+		billingSvc = billingapp.NewService(billingapp.Deps{
+			Apps:      gate,
+			Configs:   bstore.ConfigRepo(),
+			Products:  bstore.ProductRepo(),
+			Orders:    bstore.OrderRepo(),
+			Webhooks:  bstore.WebhookRepo(),
+			Registry:  registry,
+			Encryptor: encryptor,
+		})
+	case "firestore":
+		bstore := billinginfra.NewFirestoreStore(fsClient)
+		billingSvc = billingapp.NewService(billingapp.Deps{
+			Apps:      gate,
+			Configs:   bstore.ConfigRepo(),
+			Products:  bstore.ProductRepo(),
+			Orders:    bstore.OrderRepo(),
+			Webhooks:  bstore.WebhookRepo(),
+			Registry:  registry,
+			Encryptor: encryptor,
+		})
+	}
+
+	tenantSvc := tenantapp.NewAppService(cachedApps, hasher, authSvc, billingSvc)
 	gate.svc = tenantSvc
 
-	billingStub := billing.NewStubConfigService()
 	opsStub := ops.NewStubConfigService()
 
 	if strings.EqualFold(os.Getenv("SEED_ON_START"), "true") {
@@ -161,7 +197,8 @@ func main() {
 	})
 
 	authpres.RegisterRoutes(r, authSvc)
-	adminpres.RegisterRoutes(r, tenantSvc, authSvc, billingStub, opsStub, cfg.AdminAppID, cfg.AdminEmails)
+	adminpres.RegisterRoutes(r, tenantSvc, authSvc, billingSvc, opsStub, cfg.AdminAppID, cfg.AdminEmails)
+	billingpres.RegisterRoutes(r, billingSvc, authSvc)
 
 	addr := ":" + cfg.Port
 	log.Printf("harbor-services listening on %s (backend=%s)", addr, cfg.DBBackend)

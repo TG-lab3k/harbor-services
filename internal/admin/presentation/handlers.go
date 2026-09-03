@@ -168,7 +168,10 @@ func (h *Handlers) GetBillingConfig(c *gin.Context) {
 
 func (h *Handlers) PutBillingConfig(c *gin.Context) {
 	var req billing.Config
-	_ = c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, apperr.Validation("invalid request body"))
+		return
+	}
 	cfg, err := h.billing.Put(c.Request.Context(), c.Param("app_id"), &req)
 	if err != nil {
 		response.Fail(c, err)
